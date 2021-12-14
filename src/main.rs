@@ -1,31 +1,22 @@
 mod ray;
 mod vec3;
+mod world;
 
 use ray::Ray;
 use vec3::{Color, Point3, Vec3};
+use world::{Sphere, World};
 
-fn hit_sphere(center: &Point3, radius: f32, ray: &Ray) -> f32 {
-    let origin_minus_center = ray.origin - *center;
-    let a = ray.direction.dot(&ray.direction);
-    let b = 2. * ray.direction.dot(&origin_minus_center);
-    let c = origin_minus_center.dot(&origin_minus_center) - radius * radius;
-
-    let discriminant = b * b - 4. * a * c;
-    if discriminant > 0. {
-        (-b - discriminant.sqrt()) / 2. * a
-    } else {
-        -1.
-    }
-}
-
-fn ray_color(ray: &Ray) -> Color {
-    let sphere_center = Point3(0., 0., -1.);
-    let sphere_radius = 0.5;
-    let t = hit_sphere(&sphere_center, sphere_radius, ray);
-    if t > 0. {
-        let hit_point = ray.at(t);
-        let normal = (hit_point - sphere_center).unit();
-        return 0.5 * Color(normal.x() + 1., normal.y() + 1., normal.z() + 1.);
+fn ray_color(ray: &Ray, world: &World) -> Color {
+    match world.hit(ray, 0., f32::INFINITY) {
+        Some(hit_record) => {
+            return 0.5
+                * Color(
+                    hit_record.normal.x() + 1.,
+                    hit_record.normal.y() + 1.,
+                    hit_record.normal.z() + 1.,
+                );
+        }
+        None => (),
     }
 
     let unit_direction = ray.direction.unit();
@@ -38,6 +29,17 @@ fn main() {
     let aspect_ratio = 16.0 / 9.0;
     let image_width = 400;
     let image_height = (image_width as f32 / aspect_ratio) as i32;
+
+    // world
+    let mut world = World { objects: vec![] };
+    world.add(Box::new(Sphere {
+        center: Point3(0., 0., -1.),
+        radius: 0.5,
+    }));
+    world.add(Box::new(Sphere {
+        center: Point3(0., -100.5, -1.),
+        radius: 100.,
+    }));
 
     // camera
     let viewport_height = 2.;
@@ -65,7 +67,7 @@ fn main() {
                     - origin)
                     .unit(),
             };
-            let color = ray_color(&ray);
+            let color = ray_color(&ray, &world);
             println_color(&color);
         }
     }
