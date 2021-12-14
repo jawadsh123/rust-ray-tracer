@@ -3,10 +3,36 @@ use crate::vec3::{Point3, Vec3};
 
 // TODO: rename Hittable
 
+pub enum FaceKind {
+  Front,
+  Back,
+}
+
 pub struct HitRecord {
   pub t: f32,
   pub hit_point: Point3,
   pub normal: Vec3,
+  pub face: FaceKind,
+}
+
+impl HitRecord {
+  pub fn new(ray: &Ray, t: f32, hit_point: Point3, outward_normal: Vec3) -> HitRecord {
+    let face = match ray.direction.dot(&outward_normal) < 0. {
+      true => FaceKind::Front,
+      false => FaceKind::Back,
+    };
+    let normal_multiplier = match face {
+      FaceKind::Front => 1.,
+      FaceKind::Back => -1.,
+    };
+
+    HitRecord {
+      t,
+      hit_point,
+      face,
+      normal: normal_multiplier * outward_normal,
+    }
+  }
 }
 
 // World
@@ -76,11 +102,7 @@ impl Hittable for Sphere {
 
     let t = root;
     let hit_point = ray.at(root);
-    let normal = (hit_point - self.center).unit();
-    Some(HitRecord {
-      t,
-      hit_point,
-      normal,
-    })
+    let outward_normal = (hit_point - self.center).unit();
+    Some(HitRecord::new(ray, t, hit_point, outward_normal))
   }
 }

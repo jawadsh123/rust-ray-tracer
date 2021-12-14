@@ -1,7 +1,11 @@
+mod camera;
 mod ray;
 mod vec3;
 mod world;
 
+use rand::Rng;
+
+use camera::Camera;
 use ray::Ray;
 use vec3::{Color, Point3, Vec3};
 use world::{Sphere, World};
@@ -25,10 +29,13 @@ fn ray_color(ray: &Ray, world: &World) -> Color {
 }
 
 fn main() {
+    let mut rng = rand::thread_rng();
+
     // image
     let aspect_ratio = 16.0 / 9.0;
     let image_width = 400;
     let image_height = (image_width as f32 / aspect_ratio) as i32;
+    let samples_per_pixel = 4;
 
     // world
     let mut world = World { objects: vec![] };
@@ -42,15 +49,7 @@ fn main() {
     }));
 
     // camera
-    let viewport_height = 2.;
-    let viewport_width = viewport_height * aspect_ratio;
-    let focal_length = 1.;
-
-    let origin = Point3(0., 0., 0.);
-    let horizontal_vector = Vec3(viewport_width, 0., 0.);
-    let vertical_vector = Vec3(0., viewport_height, 0.);
-    let lower_left_corner =
-        origin - horizontal_vector / 2. - vertical_vector / 2. - Vec3(0., 0., focal_length);
+    let camera = Camera::new();
 
     println!("P3");
     println!("{} {}", image_width, image_height);
@@ -59,19 +58,23 @@ fn main() {
     for row in (0..image_height).rev() {
         eprint!("\r Scanlines remaining: {}   ", row);
         for col in 0..image_width {
-            let u = col as f32 / (image_width - 1) as f32;
-            let v = row as f32 / (image_height - 1) as f32;
-            let ray = Ray {
-                origin,
-                direction: (lower_left_corner + u * horizontal_vector + v * vertical_vector
-                    - origin)
-                    .unit(),
-            };
-            let color = ray_color(&ray, &world);
-            println_color(&color);
+            let mut color = Color(0., 0., 0.);
+
+            for _ in 0..samples_per_pixel {
+                let u = (col as f32 + rng.gen_range(0.0..1.0)) / (image_width - 1) as f32;
+                let v = (row as f32 + rng.gen_range(0.0..1.0)) / (image_height - 1) as f32;
+                let ray = camera.ray_for(u, v);
+                color += ray_color(&ray, &world);
+            }
+            let processed_color = post_process(color, samples_per_pixel);
+            println_color(&processed_color);
         }
     }
     eprintln!("\nDone!");
+}
+
+fn post_process(color: Color, samples_per_pixel: i32) -> Color {
+    color / samples_per_pixel as f32
 }
 
 fn println_color(color: &Vec3) {
