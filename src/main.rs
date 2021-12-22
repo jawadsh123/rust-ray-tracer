@@ -3,21 +3,35 @@ mod ray;
 mod vec3;
 mod world;
 
-use rand::Rng;
+use rand::distributions::{Distribution, Uniform};
+use rand::rngs::SmallRng;
+use rand::SeedableRng;
 
 use camera::Camera;
 use ray::Ray;
 use vec3::{Color, Point3, Vec3};
 use world::{Sphere, World};
 
-fn ray_color(ray: &Ray, world: &World) -> Color {
+fn ray_color(ray: &Ray, world: &World, depth: i32) -> Color {
+    if depth <= 0 {
+        return Color(0., 0., 0.);
+    }
     match world.hit(ray, 0., f32::INFINITY) {
         Some(hit_record) => {
+            let reflection_target =
+                hit_record.hit_point + hit_record.normal + Vec3::random_in_unit_sphere();
+
+            // let unit_ray = hit_record.hit_point.unit();
+            // let ray_to_normal = hit_record.normal - -1. * unit_ray;
+            // let reflection_target = hit_record.hit_point + (-1. * unit_ray) + (2. * ray_to_normal);
             return 0.5
-                * Color(
-                    hit_record.normal.x() + 1.,
-                    hit_record.normal.y() + 1.,
-                    hit_record.normal.z() + 1.,
+                * ray_color(
+                    &Ray {
+                        origin: hit_record.hit_point,
+                        direction: reflection_target - hit_record.hit_point,
+                    },
+                    world,
+                    depth - 1,
                 );
         }
         None => (),
@@ -29,13 +43,15 @@ fn ray_color(ray: &Ray, world: &World) -> Color {
 }
 
 fn main() {
-    let mut rng = rand::thread_rng();
+    let mut rng = SmallRng::from_entropy();
+    let aa_uniform = Uniform::from(0.0..1.0);
 
     // image
     let aspect_ratio = 16.0 / 9.0;
     let image_width = 400;
     let image_height = (image_width as f32 / aspect_ratio) as i32;
-    let samples_per_pixel = 4;
+    let samples_per_pixel = 100;
+    let max_depth = 50;
 
     // world
     let mut world = World { objects: vec![] };
@@ -61,10 +77,10 @@ fn main() {
             let mut color = Color(0., 0., 0.);
 
             for _ in 0..samples_per_pixel {
-                let u = (col as f32 + rng.gen_range(0.0..1.0)) / (image_width - 1) as f32;
-                let v = (row as f32 + rng.gen_range(0.0..1.0)) / (image_height - 1) as f32;
+                let u = (col as f32 + aa_uniform.sample(&mut rng)) / (image_width - 1) as f32;
+                let v = (row as f32 + aa_uniform.sample(&mut rng)) / (image_height - 1) as f32;
                 let ray = camera.ray_for(u, v);
-                color += ray_color(&ray, &world);
+                color += ray_color(&ray, &world, max_depth);
             }
             let processed_color = post_process(color, samples_per_pixel);
             println_color(&processed_color);

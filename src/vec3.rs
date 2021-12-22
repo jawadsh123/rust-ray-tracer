@@ -1,3 +1,5 @@
+use rand::Rng;
+
 #[derive(Clone, Copy, Debug)]
 pub struct Vec3(pub f32, pub f32, pub f32);
 pub use Vec3 as Point3;
@@ -29,6 +31,23 @@ impl Vec3 {
   }
   pub fn length_squared(&self) -> f32 {
     (self.0 * self.0) + (self.1 * self.1) + (self.2 * self.2)
+  }
+  pub fn random_in_range(min: f32, max: f32) -> Vec3 {
+    let mut rng = rand::thread_rng();
+    Vec3(
+      rng.gen_range(min..max),
+      rng.gen_range(min..max),
+      rng.gen_range(min..max),
+    )
+  }
+
+  pub fn random_in_unit_sphere() -> Vec3 {
+    let mut vec = Vec3::random_in_range(-1., 1.);
+    while vec.length_squared() >= 1. {
+      vec = Vec3::random_in_range(-1., 1.);
+    }
+
+    vec
   }
 }
 
