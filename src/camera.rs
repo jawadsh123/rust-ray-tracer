@@ -30,7 +30,7 @@ impl Camera {
     }
   }
 
-  pub fn ray_for(&self, u: f32, v: f32) -> Ray {
+  pub fn ray_for(&self, u: f64, v: f64) -> Ray {
     Ray {
       origin: self.origin,
       direction: (self.lower_left_corner + u * self.horizontal_vector + v * self.vertical_vector

@@ -16,13 +16,13 @@ fn ray_color(ray: &Ray, world: &World, depth: i32) -> Color {
     if depth <= 0 {
         return Color(0., 0., 0.);
     }
-    match world.hit(ray, 0., f32::INFINITY) {
+    match world.hit(ray, 0., f64::INFINITY) {
         Some(hit_record) => {
             let reflection_target =
                 hit_record.hit_point + hit_record.normal + Vec3::random_in_unit_sphere();
 
-            // let unit_ray = hit_record.hit_point.unit();
-            // let ray_to_normal = hit_record.normal - -1. * unit_ray;
+            // let unit_ray = ray.direction.unit();
+            // let ray_to_normal = hit_record.normal - (-1. * unit_ray);
             // let reflection_target = hit_record.hit_point + (-1. * unit_ray) + (2. * ray_to_normal);
             return 0.5
                 * ray_color(
@@ -49,7 +49,7 @@ fn main() {
     // image
     let aspect_ratio = 16.0 / 9.0;
     let image_width = 400;
-    let image_height = (image_width as f32 / aspect_ratio) as i32;
+    let image_height = (image_width as f64 / aspect_ratio) as i32;
     let samples_per_pixel = 100;
     let max_depth = 50;
 
@@ -77,8 +77,8 @@ fn main() {
             let mut color = Color(0., 0., 0.);
 
             for _ in 0..samples_per_pixel {
-                let u = (col as f32 + aa_uniform.sample(&mut rng)) / (image_width - 1) as f32;
-                let v = (row as f32 + aa_uniform.sample(&mut rng)) / (image_height - 1) as f32;
+                let u = (col as f64 + aa_uniform.sample(&mut rng)) / (image_width - 1) as f64;
+                let v = (row as f64 + aa_uniform.sample(&mut rng)) / (image_height - 1) as f64;
                 let ray = camera.ray_for(u, v);
                 color += ray_color(&ray, &world, max_depth);
             }
@@ -90,7 +90,13 @@ fn main() {
 }
 
 fn post_process(color: Color, samples_per_pixel: i32) -> Color {
-    color / samples_per_pixel as f32
+    // color / samples_per_pixel as f64
+
+    Color(
+        (color.0 / samples_per_pixel as f64).sqrt(),
+        (color.1 / samples_per_pixel as f64).sqrt(),
+        (color.2 / samples_per_pixel as f64).sqrt(),
+    )
 }
 
 fn println_color(color: &Vec3) {

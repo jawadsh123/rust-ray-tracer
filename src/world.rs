@@ -9,14 +9,14 @@ pub enum FaceKind {
 }
 
 pub struct HitRecord {
-  pub t: f32,
+  pub t: f64,
   pub hit_point: Point3,
   pub normal: Vec3,
   pub face: FaceKind,
 }
 
 impl HitRecord {
-  pub fn new(ray: &Ray, t: f32, hit_point: Point3, outward_normal: Vec3) -> HitRecord {
+  pub fn new(ray: &Ray, t: f64, hit_point: Point3, outward_normal: Vec3) -> HitRecord {
     let face = match ray.direction.dot(&outward_normal) < 0. {
       true => FaceKind::Front,
       false => FaceKind::Back,
@@ -47,7 +47,7 @@ impl World {
     self.objects.push(object);
   }
 
-  pub fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
+  pub fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
     let mut hit_record: Option<HitRecord> = None;
     let mut closes_so_far = t_max;
 
@@ -72,16 +72,16 @@ impl World {
 // Objects
 
 pub trait Hittable {
-  fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord>;
+  fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
 }
 
 pub struct Sphere {
   pub center: Point3,
-  pub radius: f32,
+  pub radius: f64,
 }
 
 impl Hittable for Sphere {
-  fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
+  fn hit(&self, ray: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
     let origin_minus_center = ray.origin - self.center;
     let a = ray.direction.dot(&ray.direction);
     let b = 2. * ray.direction.dot(&origin_minus_center);
