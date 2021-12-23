@@ -91,10 +91,10 @@ impl Hittable for Sphere {
     if discriminant < 0. {
       return None;
     }
-    let mut root = (-b - discriminant.sqrt()) / 2. * a;
+    let mut root = (-b - discriminant.sqrt()) / (2. * a);
 
     if root < t_min || root > t_max {
-      root = (-b + discriminant.sqrt()) / 2. * a;
+      root = (-b + discriminant.sqrt()) / (2. * a);
       if root < t_min || root > t_max {
         return None;
       }
