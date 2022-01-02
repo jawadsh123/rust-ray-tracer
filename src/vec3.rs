@@ -49,6 +49,15 @@ impl Vec3 {
 
     vec
   }
+
+  pub fn random_unit_vector() -> Vec3 {
+    Vec3::random_in_unit_sphere().unit()
+  }
+
+  pub fn near_zero(&self) -> bool {
+    let small_num = 1e-8;
+    self.0.abs() < small_num && self.1.abs() < small_num && self.2.abs() < small_num
+  }
 }
 
 impl std::ops::Add for Vec3 {

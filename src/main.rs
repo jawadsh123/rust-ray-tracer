@@ -6,34 +6,25 @@ mod world;
 use rand::distributions::{Distribution, Uniform};
 use rand::rngs::SmallRng;
 use rand::SeedableRng;
+use std::rc::Rc;
 
 use camera::Camera;
 use ray::Ray;
 use vec3::{Color, Point3, Vec3};
-use world::{Sphere, World};
+use world::{Lambertian, Metal, Sphere, World};
 
 fn ray_color(ray: &Ray, world: &World, depth: i32) -> Color {
     if depth <= 0 {
         return Color(0., 0., 0.);
     }
-    match world.hit(ray, 0., f64::INFINITY) {
-        Some(hit_record) => {
-            let reflection_target =
-                hit_record.hit_point + hit_record.normal + Vec3::random_in_unit_sphere();
-
-            // let unit_ray = ray.direction.unit();
-            // let ray_to_normal = hit_record.normal - (-1. * unit_ray);
-            // let reflection_target = hit_record.hit_point + (-1. * unit_ray) + (2. * ray_to_normal);
-            return 0.5
-                * ray_color(
-                    &Ray {
-                        origin: hit_record.hit_point,
-                        direction: reflection_target - hit_record.hit_point,
-                    },
-                    world,
-                    depth - 1,
-                );
-        }
+    match world.hit(ray, 0.001, f64::INFINITY) {
+        Some(hit_record) => match (*hit_record.material).scatter(ray, &hit_record) {
+            Some(scatter_record) => {
+                return scatter_record.attenuation
+                    * ray_color(&scatter_record.ray, world, depth - 1)
+            }
+            None => return Color(0., 0., 0.),
+        },
         None => (),
     }
 
@@ -53,15 +44,41 @@ fn main() {
     let samples_per_pixel = 100;
     let max_depth = 50;
 
+    // Materials
+    let mat_ground = Rc::new(Lambertian {
+        albedo: Color(0.8, 0.8, 0.0),
+    });
+    let mat_center = Rc::new(Lambertian {
+        albedo: Color(0.7, 0.3, 0.2),
+    });
+    let mat_right = Rc::new(Metal {
+        albedo: Color(0.8, 0.6, 0.2),
+    });
+    let mat_left = Rc::new(Metal {
+        albedo: Color(0.8, 0.8, 0.8),
+    });
+
     // world
     let mut world = World { objects: vec![] };
     world.add(Box::new(Sphere {
-        center: Point3(0., 0., -1.),
-        radius: 0.5,
-    }));
-    world.add(Box::new(Sphere {
         center: Point3(0., -100.5, -1.),
         radius: 100.,
+        material: mat_ground.clone(),
+    }));
+    world.add(Box::new(Sphere {
+        center: Point3(0., 0., -1.),
+        radius: 0.5,
+        material: mat_center.clone(),
+    }));
+    world.add(Box::new(Sphere {
+        center: Point3(1., 0., -1.),
+        radius: 0.5,
+        material: mat_right.clone(),
+    }));
+    world.add(Box::new(Sphere {
+        center: Point3(-1., 0., -1.),
+        radius: 0.5,
+        material: mat_left.clone(),
     }));
 
     // camera

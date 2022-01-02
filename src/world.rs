@@ -1,5 +1,6 @@
 use crate::ray::Ray;
-use crate::vec3::{Point3, Vec3};
+use crate::vec3::{Color, Point3, Vec3};
+use std::rc::Rc;
 
 // TODO: rename Hittable
 
@@ -13,10 +14,17 @@ pub struct HitRecord {
   pub hit_point: Point3,
   pub normal: Vec3,
   pub face: FaceKind,
+  pub material: Rc<dyn Material>,
 }
 
 impl HitRecord {
-  pub fn new(ray: &Ray, t: f64, hit_point: Point3, outward_normal: Vec3) -> HitRecord {
+  pub fn new(
+    ray: &Ray,
+    t: f64,
+    hit_point: Point3,
+    outward_normal: Vec3,
+    material: Rc<dyn Material>,
+  ) -> HitRecord {
     let face = match ray.direction.dot(&outward_normal) < 0. {
       true => FaceKind::Front,
       false => FaceKind::Back,
@@ -31,6 +39,7 @@ impl HitRecord {
       hit_point,
       face,
       normal: normal_multiplier * outward_normal,
+      material,
     }
   }
 }
@@ -78,6 +87,7 @@ pub trait Hittable {
 pub struct Sphere {
   pub center: Point3,
   pub radius: f64,
+  pub material: Rc<dyn Material>,
 }
 
 impl Hittable for Sphere {
@@ -103,6 +113,72 @@ impl Hittable for Sphere {
     let t = root;
     let hit_point = ray.at(root);
     let outward_normal = (hit_point - self.center).unit();
-    Some(HitRecord::new(ray, t, hit_point, outward_normal))
+    Some(HitRecord::new(
+      ray,
+      t,
+      hit_point,
+      outward_normal,
+      self.material.clone(),
+    ))
+  }
+}
+
+// Materials
+
+pub struct ScatterRecord {
+  pub ray: Ray,
+  pub attenuation: Color,
+}
+
+pub trait Material {
+  fn scatter(&self, ray: &Ray, hit_record: &HitRecord) -> Option<ScatterRecord>;
+}
+
+pub struct Lambertian {
+  pub albedo: Color,
+}
+
+pub struct Metal {
+  pub albedo: Color,
+}
+
+impl Material for Lambertian {
+  fn scatter(&self, _ray: &Ray, hit_record: &HitRecord) -> Option<ScatterRecord> {
+    let mut scatter_direction = hit_record.normal + Vec3::random_unit_vector();
+
+    if scatter_direction.near_zero() {
+      scatter_direction = hit_record.normal;
+    }
+
+    Some(ScatterRecord {
+      attenuation: self.albedo,
+      ray: Ray {
+        origin: hit_record.hit_point,
+        direction: scatter_direction,
+      },
+    })
+  }
+}
+
+impl Material for Metal {
+  fn scatter(&self, ray: &Ray, hit_record: &HitRecord) -> Option<ScatterRecord> {
+    let scatter_direction =
+      ray.direction.unit() - 2. * ray.direction.unit().dot(&hit_record.normal) * hit_record.normal;
+
+    // let unit_ray = ray.direction.unit();
+    // let ray_to_normal = hit_record.normal - (-1. * unit_ray);
+    // let scatter_direction = (-1. * unit_ray) + (2. * ray_to_normal);
+
+    if scatter_direction.dot(&hit_record.normal) > 0. {
+      Some(ScatterRecord {
+        attenuation: self.albedo,
+        ray: Ray {
+          origin: hit_record.hit_point,
+          direction: scatter_direction,
+        },
+      })
+    } else {
+      None
+    }
   }
 }
