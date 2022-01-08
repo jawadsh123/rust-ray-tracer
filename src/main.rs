@@ -17,15 +17,14 @@ fn ray_color(ray: &Ray, world: &World, depth: i32) -> Color {
     if depth <= 0 {
         return Color(0., 0., 0.);
     }
-    match world.hit(ray, 0.001, f64::INFINITY) {
-        Some(hit_record) => match (*hit_record.material).scatter(ray, &hit_record) {
+    if let Some(hit_record) = world.hit(ray, 0.001, f64::INFINITY) {
+        match (*hit_record.material).scatter(ray, &hit_record) {
             Some(scatter_record) => {
                 return scatter_record.attenuation
                     * ray_color(&scatter_record.ray, world, depth - 1)
             }
             None => return Color(0., 0., 0.),
-        },
-        None => (),
+        }
     }
 
     let unit_direction = ray.direction.unit();
@@ -58,7 +57,10 @@ fn main() {
         albedo: Color(0.8, 0.6, 0.2),
         fuzz: 1.0,
     });
-    let mat_center = Rc::new(Dielectric { ior: 1.5, rng: SmallRng::from_entropy() });
+    let mat_center = Rc::new(Dielectric {
+        ior: 1.5,
+        rng: SmallRng::from_entropy(),
+    });
 
     // world
     let mut world = World { objects: vec![] };
