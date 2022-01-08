@@ -1,3 +1,6 @@
+use rand::{Rng};
+use rand::prelude::SmallRng;
+
 use crate::ray::Ray;
 use crate::vec3::{Color, Point3, Vec3};
 use std::rc::Rc;
@@ -140,6 +143,12 @@ pub struct Lambertian {
 
 pub struct Metal {
   pub albedo: Color,
+  pub fuzz: f64,
+}
+
+pub struct Dielectric {
+  pub ior: f64,
+  pub rng: SmallRng
 }
 
 impl Material for Lambertian {
@@ -164,21 +173,64 @@ impl Material for Metal {
   fn scatter(&self, ray: &Ray, hit_record: &HitRecord) -> Option<ScatterRecord> {
     let scatter_direction =
       ray.direction.unit() - 2. * ray.direction.unit().dot(&hit_record.normal) * hit_record.normal;
+    let scattered_ray = Ray {
+      origin: hit_record.hit_point,
+      direction: scatter_direction + self.fuzz * Vec3::random_in_unit_sphere(),
+    };
 
-    // let unit_ray = ray.direction.unit();
-    // let ray_to_normal = hit_record.normal - (-1. * unit_ray);
-    // let scatter_direction = (-1. * unit_ray) + (2. * ray_to_normal);
-
-    if scatter_direction.dot(&hit_record.normal) > 0. {
+    // hack: absorb the rays that leak inside after applying fuzz
+    if scattered_ray.direction.dot(&hit_record.normal) > 0. {
       Some(ScatterRecord {
+        ray: scattered_ray,
         attenuation: self.albedo,
-        ray: Ray {
-          origin: hit_record.hit_point,
-          direction: scatter_direction,
-        },
       })
     } else {
       None
     }
+  }
+}
+
+impl Material for Dielectric {
+  fn scatter(&self, ray: &Ray, hit_record: &HitRecord) -> Option<ScatterRecord> {
+    let (n1, n2) = match hit_record.face {
+      FaceKind::Front => (1., self.ior),
+      FaceKind::Back => (self.ior, 1.),
+    };
+
+    let unit_ray = ray.direction.unit();
+    let normal_projection = (-1.0 * unit_ray.dot(&hit_record.normal)) * hit_record.normal;
+    let rtn = normal_projection + unit_ray;
+    let x_part = rtn * (n1 / n2);
+    let y_part = (1.0 - x_part.dot(&x_part)).sqrt() * (-1. * hit_record.normal);
+
+    let refract_direction = x_part + y_part;
+    let reflect_direction = unit_ray - 2. * unit_ray.dot(&hit_record.normal) * hit_record.normal;
+    let reflectance = Dielectric::reflectance(normal_projection.length(), n1, n2);
+
+    let mut rng = rand::thread_rng();
+    let cannot_refract = x_part.length() > 1.;
+    Some(ScatterRecord {
+      attenuation: Color(1., 1., 1.),
+      ray: Ray {
+        origin: hit_record.hit_point,
+        direction: if cannot_refract || reflectance > rng.gen_range(0.0..1.0) {
+          reflect_direction
+        } else {
+          refract_direction
+        }
+      },
+    })
+  }
+}
+
+impl Dielectric {
+  
+  // Schlick's approximation
+  // https://en.wikipedia.org/wiki/Schlick%27s_approximation
+  fn reflectance(cosine: f64, n1: f64, n2: f64) -> f64 {
+    let mut r0 = (n1 - n2) / (n1 + n2);
+    r0 = r0 * r0;
+
+    r0 + (1. - r0) * (1. - cosine).powi(5)
   }
 }

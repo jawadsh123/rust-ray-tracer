@@ -11,7 +11,7 @@ use std::rc::Rc;
 use camera::Camera;
 use ray::Ray;
 use vec3::{Color, Point3, Vec3};
-use world::{Lambertian, Metal, Sphere, World};
+use world::{Dielectric, Lambertian, Metal, Sphere, World};
 
 fn ray_color(ray: &Ray, world: &World, depth: i32) -> Color {
     if depth <= 0 {
@@ -39,7 +39,7 @@ fn main() {
 
     // image
     let aspect_ratio = 16.0 / 9.0;
-    let image_width = 400;
+    let image_width = 480;
     let image_height = (image_width as f64 / aspect_ratio) as i32;
     let samples_per_pixel = 100;
     let max_depth = 50;
@@ -48,15 +48,17 @@ fn main() {
     let mat_ground = Rc::new(Lambertian {
         albedo: Color(0.8, 0.8, 0.0),
     });
-    let mat_center = Rc::new(Lambertian {
+    let mat_left = Rc::new(Lambertian {
         albedo: Color(0.7, 0.3, 0.2),
+    });
+    let mat_back = Rc::new(Lambertian {
+        albedo: Color(0.2, 0.3, 0.7),
     });
     let mat_right = Rc::new(Metal {
         albedo: Color(0.8, 0.6, 0.2),
+        fuzz: 1.0,
     });
-    let mat_left = Rc::new(Metal {
-        albedo: Color(0.8, 0.8, 0.8),
-    });
+    let mat_center = Rc::new(Dielectric { ior: 1.5, rng: SmallRng::from_entropy() });
 
     // world
     let mut world = World { objects: vec![] };
@@ -74,6 +76,11 @@ fn main() {
         center: Point3(1., 0., -1.),
         radius: 0.5,
         material: mat_right.clone(),
+    }));
+    world.add(Box::new(Sphere {
+        center: Point3(0., 0., -4.0),
+        radius: 0.5,
+        material: mat_back.clone(),
     }));
     world.add(Box::new(Sphere {
         center: Point3(-1., 0., -1.),
