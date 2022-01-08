@@ -67,27 +67,27 @@ fn main() {
     world.add(Box::new(Sphere {
         center: Point3(0., -100.5, -1.),
         radius: 100.,
-        material: mat_ground.clone(),
+        material: mat_ground,
     }));
     world.add(Box::new(Sphere {
         center: Point3(0., 0., -1.),
         radius: 0.5,
-        material: mat_center.clone(),
+        material: mat_center,
     }));
     world.add(Box::new(Sphere {
         center: Point3(1., 0., -1.),
         radius: 0.5,
-        material: mat_right.clone(),
+        material: mat_right,
     }));
     world.add(Box::new(Sphere {
         center: Point3(0., 0., -4.0),
         radius: 0.5,
-        material: mat_back.clone(),
+        material: mat_back,
     }));
     world.add(Box::new(Sphere {
         center: Point3(-1., 0., -1.),
         radius: 0.5,
-        material: mat_left.clone(),
+        material: mat_left,
     }));
 
     // camera
