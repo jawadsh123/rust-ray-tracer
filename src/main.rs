@@ -39,7 +39,7 @@ fn main() {
     // image
     let aspect_ratio = 16.0 / 9.0;
     let image_width = 480;
-    let image_height = (image_width as f64 / aspect_ratio) as i32;
+    let image_height = (image_width as f64 / aspect_ratio) as usize;
     let samples_per_pixel = 100;
     let max_depth = 50;
 
@@ -49,9 +49,6 @@ fn main() {
     });
     let mat_left = Rc::new(Lambertian {
         albedo: Color(0.7, 0.3, 0.2),
-    });
-    let mat_back = Rc::new(Lambertian {
-        albedo: Color(0.2, 0.3, 0.7),
     });
     let mat_right = Rc::new(Metal {
         albedo: Color(0.8, 0.6, 0.2),
@@ -80,11 +77,6 @@ fn main() {
         material: mat_right,
     }));
     world.add(Box::new(Sphere {
-        center: Point3(0., 0., -4.0),
-        radius: 0.5,
-        material: mat_back,
-    }));
-    world.add(Box::new(Sphere {
         center: Point3(-1., 0., -1.),
         radius: 0.5,
         material: mat_left,
@@ -93,41 +85,56 @@ fn main() {
     // camera
     let camera = Camera::new();
 
-    println!("P3");
-    println!("{} {}", image_width, image_height);
-    println!("255");
+    let mut image_buffer = vec![vec![Color(0., 0., 0.); image_width]; image_height];
 
-    for row in (0..image_height).rev() {
-        eprint!("\r Scanlines remaining: {}   ", row);
-        for col in 0..image_width {
-            let mut color = Color(0., 0., 0.);
+    for sample in 0..samples_per_pixel {
+        eprint!("\r Samples remaining: {}   ", samples_per_pixel - sample);
+        for row in (0..image_height).rev() {
+            for col in 0..image_width {
+                let mut color = Color(0., 0., 0.);
 
-            for _ in 0..samples_per_pixel {
                 let u = (col as f64 + aa_uniform.sample(&mut rng)) / (image_width - 1) as f64;
                 let v = (row as f64 + aa_uniform.sample(&mut rng)) / (image_height - 1) as f64;
                 let ray = camera.ray_for(u, v);
                 color += ray_color(&ray, &world, max_depth);
+
+                if sample == 0 {
+                    image_buffer[row][col].0 = (color.x()).sqrt();
+                    image_buffer[row][col].1 = (color.y()).sqrt();
+                    image_buffer[row][col].2 = (color.z()).sqrt();
+                } else {
+                    image_buffer[row][col].0 =
+                        acc_color_channel(image_buffer[row][col].0, color.x(), sample);
+                    image_buffer[row][col].1 =
+                        acc_color_channel(image_buffer[row][col].1, color.y(), sample);
+                    image_buffer[row][col].2 =
+                        acc_color_channel(image_buffer[row][col].2, color.z(), sample);
+                }
             }
-            let processed_color = post_process(color, samples_per_pixel);
-            println_color(&processed_color);
         }
     }
+
+    println!("P3");
+    println!("{} {}", image_width, image_height);
+    println!("255");
+    image_buffer.into_iter().for_each(|row| {
+        row.into_iter().for_each(|pixel| {
+            println!(
+                "{} {} {}",
+                (pixel.0 * 255.0) as i32,
+                (pixel.1 * 255.0) as i32,
+                (pixel.2 * 255.0) as i32
+            )
+        })
+    });
+
     eprintln!("\nDone!");
 }
 
-fn post_process(color: Color, samples_per_pixel: i32) -> Color {
-    // color / samples_per_pixel as f64
+// moving average + gamma correction
+fn acc_color_channel(acc: f64, new_val: f64, iteration: i32) -> f64 {
+    let acc_component = iteration as f64 * acc * acc;
+    let new_average = (new_val + acc_component) / (iteration + 1) as f64;
 
-    Color(
-        (color.0 / samples_per_pixel as f64).sqrt(),
-        (color.1 / samples_per_pixel as f64).sqrt(),
-        (color.2 / samples_per_pixel as f64).sqrt(),
-    )
-}
-
-fn println_color(color: &Vec3) {
-    let ir = (color.x() * 255.0) as i32;
-    let ig = (color.y() * 255.0) as i32;
-    let ib = (color.z() * 255.0) as i32;
-    println!("{} {} {}", ir, ig, ib);
+    new_average.sqrt()
 }
