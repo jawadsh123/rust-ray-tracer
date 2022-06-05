@@ -16,6 +16,8 @@ in
     buildInputs = with pkgs; [
       rust
       rust-analyzer
+      darwin.apple_sdk.frameworks.OpenGL
+      darwin.apple_sdk.frameworks.AppKit
     ];
 
     RUST_BACKTRACE = 1;
