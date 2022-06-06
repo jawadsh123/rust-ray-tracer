@@ -20,10 +20,12 @@ impl Vec3 {
     pub fn dot(&self, rhs: &Vec3) -> f64 {
         (self.0 * rhs.0) + (self.1 * rhs.1) + (self.2 * rhs.2)
     }
-    pub fn cross(&self, rhs: &Vec3) -> f64 {
-        (self.1 * rhs.2 - self.2 * rhs.1)
-            + (self.2 * rhs.0 - self.0 * rhs.2)
-            + (self.0 * rhs.1 - self.1 * rhs.0)
+    pub fn cross(&self, rhs: &Vec3) -> Vec3 {
+        Vec3(
+            self.1 * rhs.2 - self.2 * rhs.1,
+            self.2 * rhs.0 - self.0 * rhs.2,
+            self.0 * rhs.1 - self.1 * rhs.0,
+        )
     }
     pub fn unit(&self) -> Vec3 {
         *self / self.length()

@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use crate::camera::Camera;
 use crate::ray::Ray;
-use crate::vec3::{Color, Point3};
+use crate::vec3::{Color, Point3, Vec3};
 use crate::world::{Dielectric, Lambertian, Metal, Sphere, World};
 
 struct Config {
@@ -90,7 +90,15 @@ impl App {
         }));
 
         // camera
-        let camera = Camera::new();
+        let origin = Point3(-2., 2., 2.);
+        let camera = Camera::new(
+            origin,
+            (origin - Vec3(0., 0., -1.)).unit(),
+            Vec3(0., 1., 0.).unit(),
+            60.,
+            1.,
+            aspect_ratio,
+        );
 
         // render_texture
         let img = egui::ColorImage::new(
@@ -143,41 +151,88 @@ impl eframe::App for App {
             egui::warn_if_debug_build(ui);
 
             // update texture
-            for row in 0..config.height {
-                for col in 0..config.width {
-                    let mut color = Color(0., 0., 0.);
+            if sample_number < &mut 100 {
+                for row in 0..config.height {
+                    for col in 0..config.width {
+                        let mut color = Color(0., 0., 0.);
 
-                    let u = (col as f64 + aa_uniform_rng.sample(rng)) / (config.width - 1) as f64;
-                    let v = ((config.height - row - 1) as f64 + aa_uniform_rng.sample(rng))
-                        / (config.height - 1) as f64;
-                    let ray = camera.ray_for(u, v);
-                    color += ray_color(&ray, world, config.max_depth);
+                        let u =
+                            (col as f64 + aa_uniform_rng.sample(rng)) / (config.width - 1) as f64;
+                        let v = ((config.height - row - 1) as f64 + aa_uniform_rng.sample(rng))
+                            / (config.height - 1) as f64;
+                        let ray = camera.ray_for(u, v);
+                        color += ray_color(&ray, world, config.max_depth);
 
-                    let pixel_idx = (row * config.width + col) as usize;
-                    render_texture_img.pixels[pixel_idx][0] = acc_color_channel(
-                        render_texture_img.pixels[pixel_idx][0] as f64 / 255.0,
-                        color.x(),
-                        *sample_number,
-                    );
-                    render_texture_img.pixels[pixel_idx][1] = acc_color_channel(
-                        render_texture_img.pixels[pixel_idx][1] as f64 / 255.0,
-                        color.y(),
-                        *sample_number,
-                    );
-                    render_texture_img.pixels[pixel_idx][2] = acc_color_channel(
-                        render_texture_img.pixels[pixel_idx][2] as f64 / 255.0,
-                        color.z(),
-                        *sample_number,
-                    );
+                        let pixel_idx = (row * config.width + col) as usize;
+                        render_texture_img.pixels[pixel_idx][0] = acc_color_channel(
+                            render_texture_img.pixels[pixel_idx][0] as f64 / 255.0,
+                            color.x(),
+                            *sample_number,
+                        );
+                        render_texture_img.pixels[pixel_idx][1] = acc_color_channel(
+                            render_texture_img.pixels[pixel_idx][1] as f64 / 255.0,
+                            color.y(),
+                            *sample_number,
+                        );
+                        render_texture_img.pixels[pixel_idx][2] = acc_color_channel(
+                            render_texture_img.pixels[pixel_idx][2] as f64 / 255.0,
+                            color.z(),
+                            *sample_number,
+                        );
+                    }
                 }
+                render_texture.set(render_texture_img.clone());
+                *sample_number += 1;
             }
-            render_texture.set(render_texture_img.clone());
 
             // draw
             ui.image(render_texture.id(), render_texture.size_vec2());
+            ui.heading(format!("Samples: {}", sample_number));
+
+            ui.horizontal(|ui| {
+                ui.label("Origin:");
+                let x_input = ui.add(egui::DragValue::new(&mut camera.origin.0).speed(0.2));
+                let y_input = ui.add(egui::DragValue::new(&mut camera.origin.1).speed(0.2));
+                let z_input = ui.add(egui::DragValue::new(&mut camera.origin.2).speed(0.2));
+
+                if x_input.changed() || y_input.changed() || z_input.changed() {
+                    camera.update();
+                    *sample_number = 0;
+                }
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Direction:");
+                let x_input = ui.add(egui::DragValue::new(&mut camera.direction.0).speed(0.2));
+                let y_input = ui.add(egui::DragValue::new(&mut camera.direction.1).speed(0.2));
+                let z_input = ui.add(egui::DragValue::new(&mut camera.direction.2).speed(0.2));
+
+                if x_input.changed() || y_input.changed() || z_input.changed() {
+                    camera.update();
+                    *sample_number = 0;
+                }
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("V fov:");
+                let vfov_slider = egui::Slider::new(&mut camera.vfov, 0.0..=100.0);
+                if ui.add(vfov_slider).changed() {
+                    camera.update();
+                    *sample_number = 0;
+                }
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Focal length:");
+                let vfov_slider =
+                    egui::Slider::new(&mut camera.focal_length, 0.0..=20.0).step_by(0.05);
+                if ui.add(vfov_slider).changed() {
+                    camera.update();
+                    *sample_number = 0;
+                }
+            });
         });
 
-        self.sample_number += 1;
         ctx.request_repaint();
     }
 }
